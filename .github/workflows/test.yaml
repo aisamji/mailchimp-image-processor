@@ -1,0 +1,41 @@
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+      - name: Lint with Ruff
+        uses: astral-sh/ruff-action@v3
+
+  test:
+    # NOTE: Might turn this into a matrix that runs on all machine types.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+      - name: Pipx Install Action
+        uses: threeal/pipx-install-action@v1
+        with:
+          packages: uv
+      - name: Prepare VirtualEnv cache
+        id: pycache
+        uses: actions/cache@v5
+        with:
+          key: python-${{ hashFiles('.python-version') }}-venv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            python-${{ hashFiles('.python-version') }}-venv-
+          path: .venv
+      - name: Install dependencies into VirtualEnv
+        if: steps.pycache.outputs.cache-hit != 'true'
+        run: uv sync --locked
+      - name: Run Pytest
+        run: |
+          uv run pytest
+
