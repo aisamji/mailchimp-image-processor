@@ -3,6 +3,10 @@ on:
     branches-ignore:
       - main
 
+concurrency:
+  group: "${{ github.ref_name }}-test"
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
