@@ -5,39 +5,51 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
-# TODO: Might need to add concurrency once automated version bump is added.
 concurrency:
   group: ${{ github.ref_name }}-release
   cancel-in-progress: true
 
 jobs:
-  metadata:
+  release-please:
     runs-on: ubuntu-latest
 
     outputs:
-      version: ${{ steps.meta.outputs.version }}
-      git_tag: ${{ steps.meta.outputs.git_tag }}
+      version: ${{ steps.main.outputs.version }}
+      tag_name: ${{ steps.main.outputs.tag_name }}
+      release_created: ${{ steps.main.outputs.release_created }}
 
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
-      - name: Pipx Install Action
-        uses: threeal/pipx-install-action@v1
+      - name: release-please-action
+        id: main
+        uses: googleapis/release-please-action@v4
         with:
-          packages: uv
-      - name: Export Metadata
-        id: meta
-        run: |
-          echo "version=$(uv version)" >> $GITHUB_OUTPUT
-          echo "git_tag=v$(uv version)" >> $GITHUB_OUTPUT
+          release-type: python
 
   build-binaries:
-    # TODO: Switch to matrix strategy for other machines
-    runs-on: ubuntu-latest
-
     needs:
-      - metadata
+      - release-please
+
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            extension: ""
+          - runner: windows-latest
+            extension: ".exe"
+          - runner: macos-latest
+            extension: ".app"
+          - runner: macos-latest-large
+            extension: ".app"
+
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout Repo
@@ -58,20 +70,26 @@ jobs:
         if: steps.pycache.outputs.cache-hit != 'true'
         run: uv sync --locked --no-dev
       - name: Run PyInstaller
-        run: |
-          uv run pyinstaller .venv/bin/mailchimp-image-processor
-          mv dist/mailchimp-image-processor/mailchimp-image-processor dist/mailchimp-image-processor/mailchimp-image-processor-${{ needs.metadata.outputs.version }}-${{ runner.os }}-${{ runner.arch }}
+        run: uv run pyinstaller .venv/bin/mailchimp-image-processor
+      - name: Rename binary (*nix)
+        if: ${{ runner.os != 'Windows' }}
+        run: mv dist/mailchimp-image-processor/mailchimp-image-processor${{ matrix.extension }} dist/mailchimp-image-processor/mailchimp-image-processor-${{ needs.metadata.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
+      - name: Rename binary (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: Rename-Item -Path dist/mailchimp-image-processor/mailchimp-image-processor${{ matrix.extension }} -NewName mailchimp-image-processor-${{ needs.metadata.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
       - name: Export Binary
         uses: actions/upload-artifact@v6
         with:
           path: dist/mailchimp-image-processor/*
 
-  tag-and-release:
-    runs-on: ubuntu-latest
-
+  upload-binaries:
     needs:
-      - metadata
+      - release-please
       - build-binaries
+
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    
+    runs-on: ubuntu-latest
 
     steps:
       - name: Download Binaries
@@ -81,12 +99,11 @@ jobs:
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          name: Version ${{ steps.meta.outputs.version }}
-          tag: ${{ steps.meta.outputs.tag }}
-          commit: ${{ github.sha }}
-          generateReleaseNotes: true
+          allowUpdates: true
+          omitNameDuringUpdates: true
+          tag: ${{ needs.release-please.outputs.tag_name }}
+          omitBodyDuringUpdate: true
           artifacts: dist/mailchimp-image-processor/mailchimp-image-processor*
           artifactErrorsFailBuild: true
           replacesArtifacts: true
-  # TODO: Do a version bump
 
