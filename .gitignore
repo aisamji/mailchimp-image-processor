@@ -11,3 +11,6 @@ wheels/
 
 # Pyinstaller artifacts
 *.spec
+
+# User-specific configs
+pyrightconfig.json

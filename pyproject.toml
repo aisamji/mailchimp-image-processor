@@ -24,5 +24,3 @@ dev = [
     "pytest>=9.0.2",
 ]
 
-[tool.pyright]
-python.pythonPath = "./venv/bin/python"
