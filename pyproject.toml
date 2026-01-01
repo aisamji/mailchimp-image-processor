@@ -1,7 +1,7 @@
 [project]
 name = "mailchimp-image-processor"
 version = "0.1.0"
-description = "Add your description here"
+description = "An application to upload images to Mailchimp's Content Studio."
 readme = "README.md"
 authors = [
     { name = "Ali Samji", email = "aisamji@users.noreply.github.com" }
@@ -24,5 +24,3 @@ dev = [
     "pytest>=9.0.2",
 ]
 
-[tool.pyright]
-python.pythonPath = "./venv/bin/python"
