@@ -68,7 +68,7 @@ jobs:
           path: .venv
       - name: Install dependencies into VirtualEnv
         if: steps.pycache.outputs.cache-hit != 'true'
-        run: uv sync --locked --no-dev
+        run: uv sync --frozen --no-dev
       - name: Run PyInstaller
         run: uv run pyinstaller --onefile --windowed .venv/bin/mailchimp-image-processor
       - name: Rename binary (*nix)

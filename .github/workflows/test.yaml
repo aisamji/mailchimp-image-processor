@@ -40,7 +40,7 @@ jobs:
           path: .venv
       - name: Install dependencies into VirtualEnv
         if: steps.pycache.outputs.cache-hit != 'true'
-        run: uv sync --locked
+        run: uv sync --frozen
       - name: Run Pytest
         run: |
           uv run pytest
