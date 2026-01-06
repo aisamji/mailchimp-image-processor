@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.3...v0.2.4) (2026-01-06)
+
+
+### Bug Fixes
+
+* **ci:** Use correct script path on windows. ([ab8edfc](https://github.com/aisamji/mailchimp-image-processor/commit/ab8edfc665afcb0ccd889bd9517db3b4abe2ac31))
+
 ## [0.2.3](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.2...v0.2.3) (2026-01-06)
 
 
