@@ -80,7 +80,7 @@ jobs:
       - name: Export Binary
         uses: actions/upload-artifact@v6
         with:
-          path: dist/mailchimp-image-processor/*
+          path: dist/mailchimp-image-processor-*
 
   upload-binaries:
     needs:
