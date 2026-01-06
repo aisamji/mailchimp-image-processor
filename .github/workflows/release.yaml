@@ -77,7 +77,7 @@ jobs:
       - name: Build binary (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
-          uv run pyinstaller --onefile --windowed .venv/Scripts/mailchimp-image-processor
+          uv run pyinstaller --onefile --windowed .venv/Scripts/mailchimp-image-processor-script.py
           Rename-Item -Path dist/mailchimp-image-processor${{ matrix.extension }} -NewName mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
       - name: Export Binary
         uses: actions/upload-artifact@v6
