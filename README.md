@@ -18,7 +18,8 @@ With the above tools installed, run the following two commands to prepare your e
 
 ```bash
 uv sync  # Sets up a python virtualenvironment for this project.
-pre-commit install  # Install git hooks that run during git operations.
+pre-commit install  # Install pre-commit git hooks.
+pre-commit install -t post-checkout  # Install post-checkout git hooks.
 ```
 You can now run the project with `uv run mailchimp-image-processor` or run tests with `uv run pytest`. Modify application code under the *src/* directory and modify tests under the *tests/* directory.
 
