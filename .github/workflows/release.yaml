@@ -75,10 +75,10 @@ jobs:
         run: uv run pyinstaller .venv/bin/mailchimp-image-processor
       - name: Rename binary (*nix)
         if: ${{ runner.os != 'Windows' }}
-        run: mv dist/mailchimp-image-processor/mailchimp-image-processor${{ matrix.extension }} dist/mailchimp-image-processor/mailchimp-image-processor-${{ needs.metadata.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
+        run: mv dist/mailchimp-image-processor/mailchimp-image-processor${{ matrix.extension }} dist/mailchimp-image-processor/mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
       - name: Rename binary (Windows)
         if: ${{ runner.os == 'Windows' }}
-        run: Rename-Item -Path dist/mailchimp-image-processor/mailchimp-image-processor${{ matrix.extension }} -NewName mailchimp-image-processor-${{ needs.metadata.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
+        run: Rename-Item -Path dist/mailchimp-image-processor/mailchimp-image-processor${{ matrix.extension }} -NewName mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
       - name: Export Binary
         uses: actions/upload-artifact@v6
         with:
