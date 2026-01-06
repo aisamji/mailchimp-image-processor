@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.4...v0.2.5) (2026-01-06)
+
+
+### Bug Fixes
+
+* **ci:** Force pyinstaller to use the script on windows. ([80c3616](https://github.com/aisamji/mailchimp-image-processor/commit/80c3616e3361b6537ea41b8e5ef3166e7138980b))
+
 ## [0.2.4](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.3...v0.2.4) (2026-01-06)
 
 
