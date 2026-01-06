@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.2...v0.2.3) (2026-01-06)
+
+
+### Bug Fixes
+
+* artifact build process. ([6a69cce](https://github.com/aisamji/mailchimp-image-processor/commit/6a69cce75082dcfef1a08851ae75d59afa9c60f4))
+
 ## [0.2.2](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.1...v0.2.2) (2026-01-06)
 
 
