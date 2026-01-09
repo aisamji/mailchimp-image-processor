@@ -72,12 +72,13 @@ jobs:
 
       - name: Build Binary
         run: uv run pyinstaller --onefile --windowed launcher.py
-      - name: Rename Binary (*nix)
+      - name: Archive Binary (*nix)
         if: ${{ runner.os != 'Windows' }}
-        run: mv dist/launcher${{ matrix.extension }} dist/mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
-      - name: Rename binary (Windows)
+        working-directory: dist
+        run: zip -r mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}.zip launcher${{ matrix.extension }} 
+      - name: Archive binary (Windows)
         if: ${{ runner.os == 'Windows' }}
-        run: Rename-Item -Path dist/launcher${{ matrix.extension }} -NewName mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
+        run: Compress-Archive -Path launcher${{ matrix.extension }} -DestinationPath mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}.zip
       - name: Export Binary
         uses: actions/upload-artifact@v6
         with:
