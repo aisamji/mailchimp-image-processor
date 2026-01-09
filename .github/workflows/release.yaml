@@ -54,7 +54,7 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
-      - name: Pipx Install Action
+      - name: Install uv
         uses: threeal/pipx-install-action@v1
         with:
           packages: uv
