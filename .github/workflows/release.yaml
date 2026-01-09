@@ -54,7 +54,7 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
-      - name: Pipx Install Action
+      - name: Install uv
         uses: threeal/pipx-install-action@v1
         with:
           packages: uv
@@ -75,11 +75,15 @@ jobs:
       - name: Archive Binary (*nix)
         if: ${{ runner.os != 'Windows' }}
         working-directory: dist
-        run: zip -r mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}.zip launcher${{ matrix.extension }} 
+        run: |
+          mv launcher${{ matrix.extenstion }} mailchimp-image-processor${{ matrix.extension }}
+          zip -r mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}.zip mailchimp-image-processor${{ matrix.extension }} 
       - name: Archive binary (Windows)
         working-directory: dist
         if: ${{ runner.os == 'Windows' }}
-        run: Compress-Archive -Path launcher${{ matrix.extension }} -DestinationPath mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}.zip
+        run: |
+          Rename-Item -Path launcher${{ matrix.extension }} -NewName mailchimp-image-processor${{ matrix.extension }}
+          Compress-Archive -Path mailchimp-image-processor${{ matrix.extension }} -DestinationPath mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}.zip
       - name: Export Binary
         uses: actions/upload-artifact@v6
         with:
