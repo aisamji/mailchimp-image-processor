@@ -69,16 +69,15 @@ jobs:
       - name: Install dependencies into VirtualEnv
         if: steps.pycache.outputs.cache-hit != 'true'
         run: uv sync --frozen --no-dev
-      - name: Build Binary (*nix)
+
+      - name: Build Binary
+        run: uv run pyinstaller --onefile --windowed launcher.py
+      - name: Rename Binary (*nix)
         if: ${{ runner.os != 'Windows' }}
-        run: |
-          uv run pyinstaller --onefile --windowed .venv/bin/mailchimp-image-processor
-          mv dist/mailchimp-image-processor${{ matrix.extension }} dist/mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
-      - name: Build binary (Windows)
+        run: mv dist/launcher${{ matrix.extension }} dist/mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
+      - name: Rename binary (Windows)
         if: ${{ runner.os == 'Windows' }}
-        run: |
-          uv run pyinstaller --onefile --windowed .venv/Scripts/mailchimp-image-processor-script.py
-          Rename-Item -Path dist/mailchimp-image-processor${{ matrix.extension }} -NewName mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
+        run: Rename-Item -Path dist/launcher${{ matrix.extension }} -NewName mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}${{ matrix.extension }}
       - name: Export Binary
         uses: actions/upload-artifact@v6
         with:
@@ -98,7 +97,7 @@ jobs:
       - name: Download Binaries
         uses: actions/download-artifact@v6
         with:
-          path: dist/mailchimp-image-processor
+          path: dist
           merge-multiple: true
       - name: Create Release
         uses: ncipollo/release-action@v1
