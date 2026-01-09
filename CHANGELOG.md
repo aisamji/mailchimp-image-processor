@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.6...v0.2.7) (2026-01-09)
+
+
+### Bug Fixes
+
+* **ci:** Use zip files for artifacts instead of binaries ([5b79c13](https://github.com/aisamji/mailchimp-image-processor/commit/5b79c13fbaee32344b08ff22e6b28b0a3c4792c7))
+
 ## [0.2.6](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.5...v0.2.6) (2026-01-09)
 
 
