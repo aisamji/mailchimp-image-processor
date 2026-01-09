@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.5...v0.2.6) (2026-01-09)
+
+
+### Bug Fixes
+
+* **ci:** Create custom launcher script for pyinstaller. ([44f4d8a](https://github.com/aisamji/mailchimp-image-processor/commit/44f4d8ab003b117312348e8719aaa24c04899cb1))
+
 ## [0.2.5](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.4...v0.2.5) (2026-01-06)
 
 

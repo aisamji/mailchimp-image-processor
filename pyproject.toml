@@ -1,6 +1,6 @@
 [project]
 name = "mailchimp-image-processor"
-version = "0.2.5"
+version = "0.2.6"
 description = "An application to upload images to Mailchimp's Content Studio."
 readme = "README.md"
 authors = [
