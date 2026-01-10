@@ -76,8 +76,8 @@ jobs:
         if: ${{ runner.os != 'Windows' }}
         working-directory: dist
         run: |
-          mv launcher${{ matrix.extenstion }} mailchimp-image-processor${{ matrix.extension }}
-          zip -r mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}.zip mailchimp-image-processor${{ matrix.extension }} 
+          mv launcher${{ matrix.extension }} mailchimp-image-processor${{ matrix.extension }}
+          zip -r mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}.zip mailchimp-image-processor${{ matrix.extension }}
       - name: Archive binary (Windows)
         working-directory: dist
         if: ${{ runner.os == 'Windows' }}
