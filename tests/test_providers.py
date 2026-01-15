@@ -1,9 +1,12 @@
+import io
 import os
 import shutil
 import tempfile
 from collections.abc import Generator
 
 import pytest
+from googleapiclient.http import HttpMockSequence
+from PIL import Image as img
 from PIL import UnidentifiedImageError
 
 from mailchimp_image_processor.providers import FilesystemImageProvider
@@ -134,3 +137,50 @@ class TestGoogleDriveUrlParser:
 
         with pytest.raises(ValueError, match="Not a valid Google Drive URL"):
             parse_drive_url("https://example.com/file.jpg")
+
+
+################################################
+
+
+class TestGoogleDriveImageProvider:
+    """Tests for the GoogleDriveImageProvider"""
+
+    @pytest.fixture(scope="class")
+    def mock_data_dir(self) -> str:
+        """Return path to mock data files for Google API responses."""
+        return "./tests/mock_data/google_drive"
+
+    @pytest.fixture(scope="class")
+    def drive_discovery(self, mock_data_dir: str) -> bytes:
+        """Load the Google Drive API v3 discovery document."""
+        with open(f"{mock_data_dir}/drive_v3_discovery.json", "rb") as f:
+            return f.read()
+
+    @pytest.fixture(scope="class")
+    def sample_image_bytes(self) -> bytes:
+        """Create a minimal valid PNG image in memory."""
+        image = img.new("RGB", (100, 100), color="red")
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    def test_extract_image_file_returns_single_image(
+        self, drive_discovery: bytes, sample_image_bytes: bytes
+    ):
+        """When source is an image file URL, extract returns a single image."""
+        from mailchimp_image_processor.providers import GoogleDriveImageProvider
+
+        http = HttpMockSequence(
+            [
+                # 1. files.get_media to download content
+                ({"status": "200"}, sample_image_bytes),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
+        url = "https://drive.google.com/file/d/1ABC123def456/view"
+
+        images = provider.extract(url)
+
+        assert len(images) == 1
+        assert images[0].verify() is None

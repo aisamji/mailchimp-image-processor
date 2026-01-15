@@ -1,3 +1,4 @@
+import io
 import os
 import re
 from abc import ABC, abstractmethod
@@ -5,6 +6,7 @@ from dataclasses import dataclass
 from typing import override
 from urllib.parse import parse_qs, urlparse
 
+from googleapiclient.discovery import build, build_from_document
 from PIL import Image as img, UnidentifiedImageError
 from PIL.Image import Image
 
@@ -99,3 +101,35 @@ class FilesystemImageProvider(ImageProvider):
 
     def _extract_from_file(self, file: str) -> Image:
         return img.open(file)
+
+
+class GoogleDriveImageProvider(ImageProvider):
+    def __init__(self, http=None, discovery_doc=None):
+        """Initialize Google Drive provider with optional HTTP mock for testing."""
+        self._http = http
+        self._discovery_doc = discovery_doc
+
+    @override
+    def extract(self, source: str) -> list[Image]:
+        """Extract images from Google Drive URL."""
+        # Parse the URL to get file ID
+        url_info = parse_drive_url(source)
+
+        # Build the Drive service
+        if self._discovery_doc:
+            import json
+
+            service = build_from_document(
+                json.loads(self._discovery_doc), http=self._http
+            )
+        else:
+            service = build("drive", "v3", http=self._http)
+
+        # Download file content
+        request = service.files().get_media(fileId=url_info.file_id)
+        file_content = request.execute()
+
+        # Convert to PIL Image
+        image = img.open(io.BytesIO(file_content))
+
+        return [image]
