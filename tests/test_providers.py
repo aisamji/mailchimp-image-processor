@@ -86,3 +86,51 @@ class TestFileSystemProvider:
 
 
 ################################################
+
+
+class TestGoogleDriveUrlParser:
+    """Tests for Google Drive URL parsing utility."""
+
+    def test_parse_drive_url_extracts_simple_file_id(self):
+        """URL parser extracts file ID from basic file URL."""
+        from mailchimp_image_processor.providers import parse_drive_url
+
+        result = parse_drive_url("https://drive.google.com/file/d/ABC123/view")
+        assert result.file_id == "ABC123"
+
+    def test_parse_drive_url_extracts_file_id_with_query_params(self):
+        """URL parser extracts file ID from file URL with query parameters."""
+        from mailchimp_image_processor.providers import parse_drive_url
+
+        result = parse_drive_url(
+            "https://drive.google.com/file/d/ABC123/view?usp=sharing"
+        )
+        assert result.file_id == "ABC123"
+
+    def test_parse_drive_url_extracts_file_id_from_open_url(self):
+        """URL parser extracts file ID from /open?id= URL format."""
+        from mailchimp_image_processor.providers import parse_drive_url
+
+        result = parse_drive_url("https://drive.google.com/open?id=ABC123")
+        assert result.file_id == "ABC123"
+
+    def test_parse_drive_url_extracts_doc_id(self):
+        """URL parser extracts document ID from Google Docs URL."""
+        from mailchimp_image_processor.providers import parse_drive_url
+
+        result = parse_drive_url("https://docs.google.com/document/d/DOC456/edit")
+        assert result.file_id == "DOC456"
+
+    def test_parse_drive_url_extracts_folder_id(self):
+        """URL parser extracts folder ID from folder URL."""
+        from mailchimp_image_processor.providers import parse_drive_url
+
+        result = parse_drive_url("https://drive.google.com/drive/folders/FOLDER789")
+        assert result.file_id == "FOLDER789"
+
+    def test_parse_drive_url_invalid_url_raises_error(self):
+        """URL parser raises ValueError for non-Google Drive URLs."""
+        from mailchimp_image_processor.providers import parse_drive_url
+
+        with pytest.raises(ValueError, match="Not a valid Google Drive URL"):
+            parse_drive_url("https://example.com/file.jpg")
