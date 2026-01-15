@@ -227,3 +227,72 @@ class TestGoogleDriveImageProvider:
 
         with pytest.raises(ImageExtractionError):
             provider.extract(url)
+
+    def test_extract_file_access_denied_raises_error(self, drive_discovery: bytes):
+        """When file returns 403, extract raises ImageExtractionError."""
+        from mailchimp_image_processor.providers import (
+            GoogleDriveImageProvider,
+            ImageExtractionError,
+        )
+
+        http = HttpMockSequence(
+            [
+                # 1. files.get_media returns 403
+                (
+                    {"status": "403"},
+                    b'{"error": {"code": 403, "message": "Forbidden"}}',
+                ),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
+        url = "https://drive.google.com/file/d/FORBIDDEN_ID/view"
+
+        with pytest.raises(ImageExtractionError):
+            provider.extract(url)
+
+    def test_extract_rate_limited_raises_error(self, drive_discovery: bytes):
+        """When API returns 429, extract raises ImageExtractionError."""
+        from mailchimp_image_processor.providers import (
+            GoogleDriveImageProvider,
+            ImageExtractionError,
+        )
+
+        http = HttpMockSequence(
+            [
+                # 1. files.get_media returns 429
+                (
+                    {"status": "429"},
+                    b'{"error": {"code": 429, "message": "Rate limit exceeded"}}',
+                ),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
+        url = "https://drive.google.com/file/d/SOME_ID/view"
+
+        with pytest.raises(ImageExtractionError):
+            provider.extract(url)
+
+    def test_extract_server_error_raises_error(self, drive_discovery: bytes):
+        """When API returns 500/503, extract raises ImageExtractionError."""
+        from mailchimp_image_processor.providers import (
+            GoogleDriveImageProvider,
+            ImageExtractionError,
+        )
+
+        http = HttpMockSequence(
+            [
+                # 1. files.get_media returns 500
+                (
+                    {"status": "500"},
+                    b'{"error": {"code": 500, "message": "Internal server error"}}',
+                ),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
+        url = "https://drive.google.com/file/d/SOME_ID/view"
+
+        with pytest.raises(ImageExtractionError):
+            provider.extract(url)
