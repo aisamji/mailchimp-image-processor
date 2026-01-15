@@ -7,6 +7,7 @@ from typing import override
 from urllib.parse import parse_qs, urlparse
 
 from googleapiclient.discovery import build, build_from_document
+from googleapiclient.errors import HttpError
 from PIL import Image as img, UnidentifiedImageError
 from PIL.Image import Image
 
@@ -127,9 +128,17 @@ class GoogleDriveImageProvider(ImageProvider):
 
         # Download file content
         request = service.files().get_media(fileId=url_info.file_id)
-        file_content = request.execute()
+        try:
+            file_content = request.execute()
+        except HttpError as e:
+            raise ImageExtractionError(
+                f"Failed to download file: {e.reason}", source, cause=e
+            ) from e
 
         # Convert to PIL Image
-        image = img.open(io.BytesIO(file_content))
+        try:
+            image = img.open(io.BytesIO(file_content))
+        except UnidentifiedImageError as e:
+            raise ImageExtractionError("File is not an image", source, cause=e) from e
 
         return [image]

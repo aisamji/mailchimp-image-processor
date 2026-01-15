@@ -184,3 +184,46 @@ class TestGoogleDriveImageProvider:
 
         assert len(images) == 1
         assert images[0].verify() is None
+
+    def test_extract_non_image_file_raises_error(self, drive_discovery: bytes):
+        """When source is a non-image file URL, extract raises ImageExtractionError."""
+        from mailchimp_image_processor.providers import (
+            GoogleDriveImageProvider,
+            ImageExtractionError,
+        )
+
+        http = HttpMockSequence(
+            [
+                # 1. files.get_media returns non-image content
+                ({"status": "200"}, b"This is a text file, not an image"),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
+        url = "https://drive.google.com/file/d/2DEF789ghi012/view"
+
+        with pytest.raises(ImageExtractionError, match="not an image"):
+            provider.extract(url)
+
+    def test_extract_file_not_found_raises_error(self, drive_discovery: bytes):
+        """When file returns 404, extract raises ImageExtractionError."""
+        from mailchimp_image_processor.providers import (
+            GoogleDriveImageProvider,
+            ImageExtractionError,
+        )
+
+        http = HttpMockSequence(
+            [
+                # 1. files.get_media returns 404
+                (
+                    {"status": "404"},
+                    b'{"error": {"code": 404, "message": "File not found"}}',
+                ),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
+        url = "https://drive.google.com/file/d/INVALID_ID/view"
+
+        with pytest.raises(ImageExtractionError):
+            provider.extract(url)
