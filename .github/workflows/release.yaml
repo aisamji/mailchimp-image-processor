@@ -71,7 +71,9 @@ jobs:
         run: uv sync --frozen --no-dev
 
       - name: Build Binary
-        run: uv run pyinstaller --onefile --windowed launcher.py
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > credentials.json
+          uv run pyinstaller --add-data 'credentials.json:.' --onefile --windowed launcher.py
       - name: Archive Binary (*nix)
         if: ${{ runner.os != 'Windows' }}
         working-directory: dist
