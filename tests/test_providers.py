@@ -296,3 +296,163 @@ class TestGoogleDriveImageProvider:
 
         with pytest.raises(ImageExtractionError):
             provider.extract(url)
+
+    def test_extract_empty_folder_returns_empty_list(self, drive_discovery: bytes):
+        """When folder is empty, extract returns empty list."""
+        from mailchimp_image_processor.providers import GoogleDriveImageProvider
+
+        http = HttpMockSequence(
+            [
+                # 1. files.list returns empty folder
+                ({"status": "200"}, b'{"files": []}'),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
+        url = "https://drive.google.com/drive/folders/EMPTY_FOLDER_ID"
+
+        images = provider.extract(url)
+
+        assert len(images) == 0
+
+    def test_extract_folder_returns_all_images(
+        self, drive_discovery: bytes, sample_image_bytes: bytes
+    ):
+        """When folder contains images, extract returns all images."""
+        from mailchimp_image_processor.providers import GoogleDriveImageProvider
+
+        http = HttpMockSequence(
+            [
+                # 1. files.list returns folder with 2 images and 1 text file
+                (
+                    {"status": "200"},
+                    b'{"files": [{"id": "img1", "mimeType": "image/jpeg"}, {"id": "img2", "mimeType": "image/png"}, {"id": "doc1", "mimeType": "text/plain"}]}',
+                ),
+                # 2. Download first image
+                ({"status": "200"}, sample_image_bytes),
+                # 3. Download second image
+                ({"status": "200"}, sample_image_bytes),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
+        url = "https://drive.google.com/drive/folders/FOLDER_ID"
+
+        images = provider.extract(url)
+
+        assert len(images) == 2
+        for image in images:
+            assert image.verify() is None
+
+    def test_extract_folder_skips_files_with_permission_errors(
+        self, drive_discovery: bytes, sample_image_bytes: bytes
+    ):
+        """When folder has files with permission errors, extract skips them and returns accessible images."""
+        from mailchimp_image_processor.providers import GoogleDriveImageProvider
+
+        http = HttpMockSequence(
+            [
+                # 1. files.list returns folder with 3 images
+                (
+                    {"status": "200"},
+                    b'{"files": [{"id": "img1", "mimeType": "image/jpeg"}, {"id": "img2_forbidden", "mimeType": "image/png"}, {"id": "img3", "mimeType": "image/gif"}]}',
+                ),
+                # 2. Download first image - success
+                ({"status": "200"}, sample_image_bytes),
+                # 3. Download second image - 403 forbidden
+                (
+                    {"status": "403"},
+                    b'{"error": {"code": 403, "message": "Forbidden"}}',
+                ),
+                # 4. Download third image - success
+                ({"status": "200"}, sample_image_bytes),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
+        url = "https://drive.google.com/drive/folders/FOLDER_ID"
+
+        images = provider.extract(url)
+
+        # Should return 2 images, skipping the one with permission error
+        assert len(images) == 2
+        for image in images:
+            assert image.verify() is None
+
+    def test_extract_folder_access_denied_raises_error(self, drive_discovery: bytes):
+        """When folder listing returns 403, extract raises ImageExtractionError."""
+        from mailchimp_image_processor.providers import (
+            GoogleDriveImageProvider,
+            ImageExtractionError,
+        )
+
+        http = HttpMockSequence(
+            [
+                # 1. files.list returns 403
+                (
+                    {"status": "403"},
+                    b'{"error": {"code": 403, "message": "Forbidden"}}',
+                ),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
+        url = "https://drive.google.com/drive/folders/FORBIDDEN_FOLDER_ID"
+
+        with pytest.raises(ImageExtractionError):
+            provider.extract(url)
+
+    def test_extract_google_doc_no_images_returns_empty_list(
+        self, drive_discovery: bytes, mock_data_dir: str
+    ):
+        """When Google Doc has no embedded images, extract returns empty list."""
+        from mailchimp_image_processor.providers import GoogleDriveImageProvider
+
+        with open(f"{mock_data_dir}/docs_v1_discovery.json", "rb") as f:
+            docs_discovery = f.read()
+
+        http = HttpMockSequence(
+            [
+                # 1. documents.get returns doc without inlineObjects
+                ({"status": "200"}, b'{"documentId": "DOC_ID", "title": "My Doc"}'),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=docs_discovery)
+        url = "https://docs.google.com/document/d/DOC_ID/edit"
+
+        images = provider.extract(url)
+
+        assert len(images) == 0
+
+    def test_extract_google_doc_returns_embedded_images(
+        self, drive_discovery: bytes, mock_data_dir: str, sample_image_bytes: bytes
+    ):
+        """When Google Doc has embedded images, extract returns all images."""
+        from mailchimp_image_processor.providers import GoogleDriveImageProvider
+
+        with open(f"{mock_data_dir}/docs_v1_discovery.json", "rb") as f:
+            docs_discovery = f.read()
+
+        http = HttpMockSequence(
+            [
+                # 1. documents.get returns doc with 2 embedded images
+                (
+                    {"status": "200"},
+                    b'{"documentId": "DOC_ID", "inlineObjects": {"obj1": {"inlineObjectProperties": {"embeddedObject": {"imageProperties": {"contentUri": "https://example.com/img1.png"}}}}, "obj2": {"inlineObjectProperties": {"embeddedObject": {"imageProperties": {"contentUri": "https://example.com/img2.png"}}}}}}',
+                ),
+                # 2. Download first image
+                ({"status": "200"}, sample_image_bytes),
+                # 3. Download second image
+                ({"status": "200"}, sample_image_bytes),
+            ]
+        )
+
+        provider = GoogleDriveImageProvider(http=http, discovery_doc=docs_discovery)
+        url = "https://docs.google.com/document/d/DOC_ID/edit"
+
+        images = provider.extract(url)
+
+        assert len(images) == 2
+        for image in images:
+            assert image.verify() is None

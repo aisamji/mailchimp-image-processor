@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import override
 from urllib.parse import parse_qs, urlparse
 
+import httplib2
 from googleapiclient.discovery import build, build_from_document
 from googleapiclient.errors import HttpError
 from PIL import Image as img, UnidentifiedImageError
@@ -125,6 +126,65 @@ class GoogleDriveImageProvider(ImageProvider):
             )
         else:
             service = build("drive", "v3", http=self._http)
+
+        # Check if this is a Google Docs URL
+        if "/document/" in source:
+            # Get document content
+            doc = service.documents().get(documentId=url_info.file_id).execute()
+            # Check for inline objects (embedded images)
+            inline_objects = doc.get("inlineObjects", {})
+
+            images = []
+            for obj_id, obj_data in inline_objects.items():
+                # Extract content URI from embedded image
+                try:
+                    image_props = obj_data["inlineObjectProperties"]["embeddedObject"][
+                        "imageProperties"
+                    ]
+                    content_uri = image_props.get("contentUri")
+
+                    if content_uri:
+                        # Download the image from the content URI
+                        h = httplib2.Http() if self._http is None else self._http
+                        resp, content = h.request(content_uri)
+                        image = img.open(io.BytesIO(content))
+                        images.append(image)
+                except (KeyError, UnidentifiedImageError, httplib2.HttpLib2Error):
+                    # Skip objects that aren't images or can't be downloaded
+                    pass
+
+            return images
+
+        # Check if this is a folder URL
+        if "/folders/" in source:
+            # List files in folder
+            try:
+                results = (
+                    service.files().list(q=f"'{url_info.file_id}' in parents").execute()
+                )
+            except HttpError as e:
+                raise ImageExtractionError(
+                    f"Failed to list folder: {e.reason}", source, cause=e
+                ) from e
+
+            files = results.get("files", [])
+
+            images = []
+            for file in files:
+                # Only process image files
+                mime_type = file.get("mimeType", "")
+                if mime_type.startswith("image/"):
+                    try:
+                        # Download the image
+                        request = service.files().get_media(fileId=file["id"])
+                        file_content = request.execute()
+                        image = img.open(io.BytesIO(file_content))
+                        images.append(image)
+                    except (HttpError, UnidentifiedImageError):
+                        # Skip files that can't be downloaded or aren't valid images
+                        pass
+
+            return images
 
         # Download file content
         request = service.files().get_media(fileId=url_info.file_id)
