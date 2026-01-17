@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv sync:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(ruff format:*)"
+    ],
+    "deny": [
+      "Read(credentials.json)",
+      "Read(prod-credentials.json)"
+    ]
+  }
+}
