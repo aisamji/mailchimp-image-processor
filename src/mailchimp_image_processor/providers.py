@@ -7,10 +7,13 @@ from typing import override
 from urllib.parse import parse_qs, urlparse
 
 import httplib2
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build, build_from_document
 from googleapiclient.errors import HttpError
 from PIL import Image as img, UnidentifiedImageError
 from PIL.Image import Image
+
+from mailchimp_image_processor import config
 
 
 class ImageExtractionError(Exception):
@@ -107,9 +110,27 @@ class FilesystemImageProvider(ImageProvider):
 
 class GoogleDriveImageProvider(ImageProvider):
     def __init__(self, http=None, discovery_doc=None):
-        """Initialize Google Drive provider with optional HTTP mock for testing."""
+        """Initialize Google Drive provider.
+
+        Args:
+            http: Optional HTTP mock for testing (overrides credentials)
+            discovery_doc: Optional discovery document for testing
+        """
         self._http = http
         self._discovery_doc = discovery_doc
+
+        # Load credentials unless http mock is provided for testing
+        if http is None:
+            credentials_path = config.get_credentials_path()
+            flow = InstalledAppFlow.from_client_secrets_file(
+                str(credentials_path),
+                scopes=[
+                    "https://www.googleapis.com/auth/drive.file",
+                ],
+            )
+            self._credentials = flow.run_local_server(port=0)
+        else:
+            self._credentials = None
 
     @override
     def extract(self, source: str) -> list[Image]:
@@ -122,10 +143,14 @@ class GoogleDriveImageProvider(ImageProvider):
             import json
 
             service = build_from_document(
-                json.loads(self._discovery_doc), http=self._http
+                json.loads(self._discovery_doc),
+                http=self._http,
+                credentials=self._credentials,
             )
         else:
-            service = build("drive", "v3", http=self._http)
+            service = build(
+                "drive", "v3", http=self._http, credentials=self._credentials
+            )
 
         # Check if this is a Google Docs URL
         if "/document/" in source:
