@@ -14,3 +14,8 @@ wheels/
 
 # User-specific configs
 pyrightconfig.json
+.claude/settings.local.json
+
+# Google Oauth credentials
+credentials.json
+prod-credentials.json

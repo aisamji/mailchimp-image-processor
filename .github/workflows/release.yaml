@@ -71,13 +71,15 @@ jobs:
         run: uv sync --frozen --no-dev
 
       - name: Build Binary
-        run: uv run pyinstaller --onefile --windowed launcher.py
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > credentials.json
+          uv run pyinstaller --add-data 'credentials.json:.' --onefile --windowed launcher.py
       - name: Archive Binary (*nix)
         if: ${{ runner.os != 'Windows' }}
         working-directory: dist
         run: |
-          mv launcher${{ matrix.extenstion }} mailchimp-image-processor${{ matrix.extension }}
-          zip -r mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}.zip mailchimp-image-processor${{ matrix.extension }} 
+          mv launcher${{ matrix.extension }} mailchimp-image-processor${{ matrix.extension }}
+          zip -r mailchimp-image-processor-${{ needs.release-please.outputs.version }}-${{ runner.os }}-${{ runner.arch }}.zip mailchimp-image-processor${{ matrix.extension }}
       - name: Archive binary (Windows)
         working-directory: dist
         if: ${{ runner.os == 'Windows' }}
