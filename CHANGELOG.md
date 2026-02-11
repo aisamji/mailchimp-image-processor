@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.8...v0.3.0) (2026-02-11)
+
+
+### Features
+
+* Add GoogleDriveImageProvider with comprehensive test coverage ([#15](https://github.com/aisamji/mailchimp-image-processor/issues/15)) ([92fdbdb](https://github.com/aisamji/mailchimp-image-processor/commit/92fdbdbed25c1d4134e4f44398d21aa6b55fec98))
+
 ## [0.2.8](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.7...v0.2.8) (2026-01-09)
 
 
