@@ -5,10 +5,10 @@ import tempfile
 from collections.abc import Generator
 
 import pytest
-from googleapiclient.http import HttpMockSequence
 from PIL import Image as img
 from PIL import UnidentifiedImageError
 
+from helpers.google_api_helpers import MockResponseBuilder
 from mailchimp_image_processor.providers import FilesystemImageProvider
 
 
@@ -164,18 +164,19 @@ class TestGoogleDriveImageProvider:
         image.save(buffer, format="PNG")
         return buffer.getvalue()
 
+    @pytest.fixture(scope="class")
+    def docs_discovery(self, mock_data_dir: str) -> bytes:
+        """Load the Google Docs API v1 discovery document."""
+        with open(f"{mock_data_dir}/docs_v1_discovery.json", "rb") as f:
+            return f.read()
+
     def test_extract_image_file_returns_single_image(
         self, drive_discovery: bytes, sample_image_bytes: bytes
     ):
         """When source is an image file URL, extract returns a single image."""
         from mailchimp_image_processor.providers import GoogleDriveImageProvider
 
-        http = HttpMockSequence(
-            [
-                # 1. files.get_media to download content
-                ({"status": "200"}, sample_image_bytes),
-            ]
-        )
+        http = MockResponseBuilder().file_download(sample_image_bytes).build()
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
         url = "https://drive.google.com/file/d/1ABC123def456/view"
@@ -192,11 +193,8 @@ class TestGoogleDriveImageProvider:
             ImageExtractionError,
         )
 
-        http = HttpMockSequence(
-            [
-                # 1. files.get_media returns non-image content
-                ({"status": "200"}, b"This is a text file, not an image"),
-            ]
+        http = (
+            MockResponseBuilder().success(b"This is a text file, not an image").build()
         )
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
@@ -212,15 +210,7 @@ class TestGoogleDriveImageProvider:
             ImageExtractionError,
         )
 
-        http = HttpMockSequence(
-            [
-                # 1. files.get_media returns 404
-                (
-                    {"status": "404"},
-                    b'{"error": {"code": 404, "message": "File not found"}}',
-                ),
-            ]
-        )
+        http = MockResponseBuilder().not_found().build()
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
         url = "https://drive.google.com/file/d/INVALID_ID/view"
@@ -235,15 +225,7 @@ class TestGoogleDriveImageProvider:
             ImageExtractionError,
         )
 
-        http = HttpMockSequence(
-            [
-                # 1. files.get_media returns 403
-                (
-                    {"status": "403"},
-                    b'{"error": {"code": 403, "message": "Forbidden"}}',
-                ),
-            ]
-        )
+        http = MockResponseBuilder().forbidden().build()
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
         url = "https://drive.google.com/file/d/FORBIDDEN_ID/view"
@@ -258,15 +240,7 @@ class TestGoogleDriveImageProvider:
             ImageExtractionError,
         )
 
-        http = HttpMockSequence(
-            [
-                # 1. files.get_media returns 429
-                (
-                    {"status": "429"},
-                    b'{"error": {"code": 429, "message": "Rate limit exceeded"}}',
-                ),
-            ]
-        )
+        http = MockResponseBuilder().rate_limited().build()
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
         url = "https://drive.google.com/file/d/SOME_ID/view"
@@ -281,15 +255,7 @@ class TestGoogleDriveImageProvider:
             ImageExtractionError,
         )
 
-        http = HttpMockSequence(
-            [
-                # 1. files.get_media returns 500
-                (
-                    {"status": "500"},
-                    b'{"error": {"code": 500, "message": "Internal server error"}}',
-                ),
-            ]
-        )
+        http = MockResponseBuilder().server_error().build()
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
         url = "https://drive.google.com/file/d/SOME_ID/view"
@@ -301,12 +267,7 @@ class TestGoogleDriveImageProvider:
         """When folder is empty, extract returns empty list."""
         from mailchimp_image_processor.providers import GoogleDriveImageProvider
 
-        http = HttpMockSequence(
-            [
-                # 1. files.list returns empty folder
-                ({"status": "200"}, b'{"files": []}'),
-            ]
-        )
+        http = MockResponseBuilder().empty_folder().build()
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
         url = "https://drive.google.com/drive/folders/EMPTY_FOLDER_ID"
@@ -321,18 +282,18 @@ class TestGoogleDriveImageProvider:
         """When folder contains images, extract returns all images."""
         from mailchimp_image_processor.providers import GoogleDriveImageProvider
 
-        http = HttpMockSequence(
-            [
-                # 1. files.list returns folder with 2 images and 1 text file
-                (
-                    {"status": "200"},
-                    b'{"files": [{"id": "img1", "mimeType": "image/jpeg"}, {"id": "img2", "mimeType": "image/png"}, {"id": "doc1", "mimeType": "text/plain"}]}',
-                ),
-                # 2. Download first image
-                ({"status": "200"}, sample_image_bytes),
-                # 3. Download second image
-                ({"status": "200"}, sample_image_bytes),
-            ]
+        http = (
+            MockResponseBuilder()
+            .folder_listing(
+                [
+                    {"id": "img1", "mimeType": "image/jpeg"},
+                    {"id": "img2", "mimeType": "image/png"},
+                    {"id": "doc1", "mimeType": "text/plain"},
+                ]
+            )
+            .success(sample_image_bytes)  # Download img1
+            .success(sample_image_bytes)  # Download img2
+            .build()
         )
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
@@ -350,23 +311,19 @@ class TestGoogleDriveImageProvider:
         """When folder has files with permission errors, extract skips them and returns accessible images."""
         from mailchimp_image_processor.providers import GoogleDriveImageProvider
 
-        http = HttpMockSequence(
-            [
-                # 1. files.list returns folder with 3 images
-                (
-                    {"status": "200"},
-                    b'{"files": [{"id": "img1", "mimeType": "image/jpeg"}, {"id": "img2_forbidden", "mimeType": "image/png"}, {"id": "img3", "mimeType": "image/gif"}]}',
-                ),
-                # 2. Download first image - success
-                ({"status": "200"}, sample_image_bytes),
-                # 3. Download second image - 403 forbidden
-                (
-                    {"status": "403"},
-                    b'{"error": {"code": 403, "message": "Forbidden"}}',
-                ),
-                # 4. Download third image - success
-                ({"status": "200"}, sample_image_bytes),
-            ]
+        http = (
+            MockResponseBuilder()
+            .folder_listing(
+                [
+                    {"id": "img1", "mimeType": "image/jpeg"},
+                    {"id": "img2_forbidden", "mimeType": "image/png"},
+                    {"id": "img3", "mimeType": "image/gif"},
+                ]
+            )
+            .success(sample_image_bytes)  # Download img1 - success
+            .forbidden()  # Download img2 - 403 forbidden
+            .success(sample_image_bytes)  # Download img3 - success
+            .build()
         )
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
@@ -386,15 +343,7 @@ class TestGoogleDriveImageProvider:
             ImageExtractionError,
         )
 
-        http = HttpMockSequence(
-            [
-                # 1. files.list returns 403
-                (
-                    {"status": "403"},
-                    b'{"error": {"code": 403, "message": "Forbidden"}}',
-                ),
-            ]
-        )
+        http = MockResponseBuilder().forbidden().build()
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=drive_discovery)
         url = "https://drive.google.com/drive/folders/FORBIDDEN_FOLDER_ID"
@@ -403,20 +352,12 @@ class TestGoogleDriveImageProvider:
             provider.extract(url)
 
     def test_extract_google_doc_no_images_returns_empty_list(
-        self, drive_discovery: bytes, mock_data_dir: str
+        self, docs_discovery: bytes
     ):
         """When Google Doc has no embedded images, extract returns empty list."""
         from mailchimp_image_processor.providers import GoogleDriveImageProvider
 
-        with open(f"{mock_data_dir}/docs_v1_discovery.json", "rb") as f:
-            docs_discovery = f.read()
-
-        http = HttpMockSequence(
-            [
-                # 1. documents.get returns doc without inlineObjects
-                ({"status": "200"}, b'{"documentId": "DOC_ID", "title": "My Doc"}'),
-            ]
-        )
+        http = MockResponseBuilder().document_no_images("DOC_ID").build()
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=docs_discovery)
         url = "https://docs.google.com/document/d/DOC_ID/edit"
@@ -426,26 +367,41 @@ class TestGoogleDriveImageProvider:
         assert len(images) == 0
 
     def test_extract_google_doc_returns_embedded_images(
-        self, drive_discovery: bytes, mock_data_dir: str, sample_image_bytes: bytes
+        self, docs_discovery: bytes, sample_image_bytes: bytes
     ):
         """When Google Doc has embedded images, extract returns all images."""
         from mailchimp_image_processor.providers import GoogleDriveImageProvider
 
-        with open(f"{mock_data_dir}/docs_v1_discovery.json", "rb") as f:
-            docs_discovery = f.read()
-
-        http = HttpMockSequence(
-            [
-                # 1. documents.get returns doc with 2 embedded images
-                (
-                    {"status": "200"},
-                    b'{"documentId": "DOC_ID", "inlineObjects": {"obj1": {"inlineObjectProperties": {"embeddedObject": {"imageProperties": {"contentUri": "https://example.com/img1.png"}}}}, "obj2": {"inlineObjectProperties": {"embeddedObject": {"imageProperties": {"contentUri": "https://example.com/img2.png"}}}}}}',
-                ),
-                # 2. Download first image
-                ({"status": "200"}, sample_image_bytes),
-                # 3. Download second image
-                ({"status": "200"}, sample_image_bytes),
-            ]
+        http = (
+            MockResponseBuilder()
+            .document_get(
+                {
+                    "documentId": "DOC_ID",
+                    "inlineObjects": {
+                        "obj1": {
+                            "inlineObjectProperties": {
+                                "embeddedObject": {
+                                    "imageProperties": {
+                                        "contentUri": "https://example.com/img1.png"
+                                    }
+                                }
+                            }
+                        },
+                        "obj2": {
+                            "inlineObjectProperties": {
+                                "embeddedObject": {
+                                    "imageProperties": {
+                                        "contentUri": "https://example.com/img2.png"
+                                    }
+                                }
+                            }
+                        },
+                    },
+                }
+            )
+            .success(sample_image_bytes)  # Download img1
+            .success(sample_image_bytes)  # Download img2
+            .build()
         )
 
         provider = GoogleDriveImageProvider(http=http, discovery_doc=docs_discovery)
