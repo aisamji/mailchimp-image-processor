@@ -1,6 +1,8 @@
 from pathlib import Path
 
-CONFIG_DIR = Path.home() / ".config" / "mailchimp-image-processor"
+from platformdirs import user_config_dir
+
+CONFIG_DIR = Path(user_config_dir("mip"))
 
 
 def get_credentials_path() -> Path:
