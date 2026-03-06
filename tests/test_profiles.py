@@ -7,6 +7,7 @@ from mailchimp_image_processor.profiles import (
     Profile,
     ProfileError,
     ProfileStore,
+    get_credentials_path,
     get_profiles_path,
     resolve_profile,
 )
@@ -15,8 +16,7 @@ from mailchimp_image_processor.profiles import (
 class TestGetProfilesPath:
     def test_default_path(self, monkeypatch):
         monkeypatch.delenv("MIP_PROFILES_PATH", raising=False)
-        path = get_profiles_path()
-        assert path == Path.home() / ".config" / "mip" / "profiles.json"
+        assert get_profiles_path() == Path.home() / ".config" / "mip" / "profiles.json"
 
     def test_override_via_env(self, monkeypatch, tmp_path):
         override = str(tmp_path / "custom" / "profiles.json")
@@ -24,94 +24,148 @@ class TestGetProfilesPath:
         assert get_profiles_path() == Path(override)
 
 
+class TestGetCredentialsPath:
+    def test_default_path(self, monkeypatch):
+        monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+        assert get_credentials_path() == (
+            Path.home() / ".local" / "share" / "mip" / "credentials.json"
+        )
+
+    def test_override_via_xdg_data_home(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+        assert get_credentials_path() == tmp_path / "mip" / "credentials.json"
+
+
 class TestProfileStore:
-    def test_load_missing_file(self, tmp_path):
-        store = ProfileStore(tmp_path / "profiles.json")
-        assert store.load() == {}
+    def _store(self, tmp_path):
+        return ProfileStore(
+            path=tmp_path / "profiles.json",
+            credentials_path=tmp_path / "credentials.json",
+        )
+
+    def test_load_missing_profiles_file(self, tmp_path):
+        assert self._store(tmp_path).load() == {}
+
+    def test_load_skips_profiles_without_credentials(self, tmp_path, caplog):
+        (tmp_path / "profiles.json").write_text(
+            json.dumps({"default": {"mailchimp_server_prefix": "us6"}})
+        )
+        # credentials.json absent
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            profiles = self._store(tmp_path).load()
+        assert profiles == {}
+        assert "default" in caplog.text
 
     def test_load_existing_file(self, tmp_path):
-        profiles_file = tmp_path / "profiles.json"
-        profiles_file.write_text(
+        (tmp_path / "profiles.json").write_text(
             json.dumps(
                 {
-                    "default": {"api_key": "key1", "server_prefix": "us6"},
-                    "work": {"api_key": "key2", "server_prefix": "us1"},
+                    "default": {"mailchimp_server_prefix": "us6"},
+                    "work": {"mailchimp_server_prefix": "us1"},
                 }
             )
         )
-        store = ProfileStore(profiles_file)
-        profiles = store.load()
+        (tmp_path / "credentials.json").write_text(
+            json.dumps(
+                {
+                    "default": {"mailchimp_api_key": "key1"},
+                    "work": {"mailchimp_api_key": "key2"},
+                }
+            )
+        )
+        profiles = self._store(tmp_path).load()
         assert set(profiles.keys()) == {"default", "work"}
         assert profiles["default"] == Profile(
-            name="default", api_key="key1", server_prefix="us6"
+            name="default", mailchimp_api_key="key1", mailchimp_server_prefix="us6"
         )
         assert profiles["work"] == Profile(
-            name="work", api_key="key2", server_prefix="us1"
+            name="work", mailchimp_api_key="key2", mailchimp_server_prefix="us1"
         )
 
     def test_save_creates_parent_dirs(self, tmp_path):
-        profiles_file = tmp_path / "nested" / "dir" / "profiles.json"
-        store = ProfileStore(profiles_file)
-        store.save(
-            {"default": Profile(name="default", api_key="k", server_prefix="us6")}
+        store = ProfileStore(
+            path=tmp_path / "config" / "profiles.json",
+            credentials_path=tmp_path / "data" / "credentials.json",
         )
-        assert profiles_file.exists()
-        data = json.loads(profiles_file.read_text())
-        assert data == {"default": {"api_key": "k", "server_prefix": "us6"}}
-
-    def test_save_writes_correct_json(self, tmp_path):
-        profiles_file = tmp_path / "profiles.json"
-        store = ProfileStore(profiles_file)
         store.save(
             {
-                "default": Profile(name="default", api_key="key1", server_prefix="us6"),
+                "default": Profile(
+                    name="default", mailchimp_api_key="k", mailchimp_server_prefix="us6"
+                )
             }
         )
-        data = json.loads(profiles_file.read_text())
-        assert data == {"default": {"api_key": "key1", "server_prefix": "us6"}}
+        assert store.path.exists()
+        assert store.credentials_path.exists()
+
+    def test_save_writes_correct_json(self, tmp_path):
+        self._store(tmp_path).save(
+            {
+                "default": Profile(
+                    name="default",
+                    mailchimp_api_key="key1",
+                    mailchimp_server_prefix="us6",
+                ),
+            }
+        )
+        assert json.loads((tmp_path / "profiles.json").read_text()) == {
+            "default": {"mailchimp_server_prefix": "us6"}
+        }
+        assert json.loads((tmp_path / "credentials.json").read_text()) == {
+            "default": {"mailchimp_api_key": "key1"}
+        }
 
     def test_get_returns_profile(self, tmp_path):
-        profiles_file = tmp_path / "profiles.json"
-        profiles_file.write_text(
-            json.dumps({"default": {"api_key": "key1", "server_prefix": "us6"}})
+        (tmp_path / "profiles.json").write_text(
+            json.dumps({"default": {"mailchimp_server_prefix": "us6"}})
         )
-        store = ProfileStore(profiles_file)
-        profile = store.get("default")
-        assert profile == Profile(name="default", api_key="key1", server_prefix="us6")
+        (tmp_path / "credentials.json").write_text(
+            json.dumps({"default": {"mailchimp_api_key": "key1"}})
+        )
+        profile = self._store(tmp_path).get("default")
+        assert profile == Profile(
+            name="default", mailchimp_api_key="key1", mailchimp_server_prefix="us6"
+        )
 
     def test_get_raises_for_unknown(self, tmp_path):
-        store = ProfileStore(tmp_path / "profiles.json")
         with pytest.raises(ProfileError, match="'missing'"):
-            store.get("missing")
+            self._store(tmp_path).get("missing")
 
     def test_add_persists_profile(self, tmp_path):
-        profiles_file = tmp_path / "profiles.json"
-        store = ProfileStore(profiles_file)
-        store.add(Profile(name="new", api_key="k", server_prefix="us2"))
+        store = self._store(tmp_path)
+        store.add(
+            Profile(name="new", mailchimp_api_key="k", mailchimp_server_prefix="us2")
+        )
         loaded = store.load()
         assert "new" in loaded
-        assert loaded["new"].api_key == "k"
+        assert loaded["new"].mailchimp_api_key == "k"
 
     def test_remove_persists(self, tmp_path):
-        profiles_file = tmp_path / "profiles.json"
-        profiles_file.write_text(
-            json.dumps({"default": {"api_key": "key1", "server_prefix": "us6"}})
+        (tmp_path / "profiles.json").write_text(
+            json.dumps({"default": {"mailchimp_server_prefix": "us6"}})
         )
-        store = ProfileStore(profiles_file)
+        (tmp_path / "credentials.json").write_text(
+            json.dumps({"default": {"mailchimp_api_key": "key1"}})
+        )
+        store = self._store(tmp_path)
         store.remove("default")
         assert store.load() == {}
 
     def test_remove_raises_for_unknown(self, tmp_path):
-        store = ProfileStore(tmp_path / "profiles.json")
         with pytest.raises(ProfileError, match="'ghost'"):
-            store.remove("ghost")
+            self._store(tmp_path).remove("ghost")
 
 
 class TestResolveProfile:
     def _profiles(self):
         return {
-            "default": Profile(name="default", api_key="key_d", server_prefix="us6"),
-            "work": Profile(name="work", api_key="key_w", server_prefix="us1"),
+            "default": Profile(
+                name="default", mailchimp_api_key="key_d", mailchimp_server_prefix="us6"
+            ),
+            "work": Profile(
+                name="work", mailchimp_api_key="key_w", mailchimp_server_prefix="us1"
+            ),
         }
 
     def test_cli_takes_priority(self, monkeypatch):
@@ -133,6 +187,12 @@ class TestResolveProfile:
         monkeypatch.delenv("MIP_PROFILE", raising=False)
         with pytest.raises(ProfileError):
             resolve_profile(
-                {"work": Profile(name="work", api_key="k", server_prefix="us1")},
+                {
+                    "work": Profile(
+                        name="work",
+                        mailchimp_api_key="k",
+                        mailchimp_server_prefix="us1",
+                    )
+                },
                 cli_name=None,
             )

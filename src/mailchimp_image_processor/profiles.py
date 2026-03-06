@@ -1,7 +1,10 @@
 import json
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class ProfileError(Exception):
@@ -11,8 +14,8 @@ class ProfileError(Exception):
 @dataclass
 class Profile:
     name: str
-    api_key: str
-    server_prefix: str
+    mailchimp_api_key: str
+    mailchimp_server_prefix: str
 
 
 def get_profiles_path() -> Path:
@@ -22,25 +25,56 @@ def get_profiles_path() -> Path:
     return Path.home() / ".config" / "mip" / "profiles.json"
 
 
+def get_credentials_path() -> Path:
+    xdg_data_home = os.environ.get("XDG_DATA_HOME")
+    base = Path(xdg_data_home) if xdg_data_home else Path.home() / ".local" / "share"
+    return base / "mip" / "credentials.json"
+
+
 class ProfileStore:
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(
+        self, path: Path | None = None, credentials_path: Path | None = None
+    ) -> None:
         self.path = path if path is not None else get_profiles_path()
+        self.credentials_path = (
+            credentials_path if credentials_path is not None else get_credentials_path()
+        )
 
     def load(self) -> dict[str, Profile]:
         if not self.path.exists():
             return {}
         with self.path.open() as f:
             data = json.load(f)
-        return {name: Profile(name=name, **attrs) for name, attrs in data.items()}
+
+        creds: dict[str, dict] = {}
+        if self.credentials_path.exists():
+            with self.credentials_path.open() as f:
+                creds = json.load(f)
+
+        profiles = {}
+        for name, attrs in data.items():
+            if name not in creds:
+                logger.warning("Skipping profile '%s': no credentials found", name)
+                continue
+            profiles[name] = Profile(name=name, **creds[name], **attrs)
+        return profiles
 
     def save(self, profiles: dict[str, Profile]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         data = {
-            name: {"api_key": p.api_key, "server_prefix": p.server_prefix}
+            name: {"mailchimp_server_prefix": p.mailchimp_server_prefix}
             for name, p in profiles.items()
         }
         with self.path.open("w") as f:
             json.dump(data, f, indent=2)
+
+        self.credentials_path.parent.mkdir(parents=True, exist_ok=True)
+        creds = {
+            name: {"mailchimp_api_key": p.mailchimp_api_key}
+            for name, p in profiles.items()
+        }
+        with self.credentials_path.open("w") as f:
+            json.dump(creds, f, indent=2)
 
     def get(self, name: str) -> Profile:
         profiles = self.load()
