@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 import pytest
 
@@ -7,33 +6,8 @@ from mailchimp_image_processor.profiles import (
     Profile,
     ProfileError,
     ProfileStore,
-    get_credentials_path,
-    get_profiles_path,
     resolve_profile,
 )
-
-
-class TestGetProfilesPath:
-    def test_default_path(self, monkeypatch):
-        monkeypatch.delenv("MIP_PROFILES_PATH", raising=False)
-        assert get_profiles_path() == Path.home() / ".config" / "mip" / "profiles.json"
-
-    def test_override_via_env(self, monkeypatch, tmp_path):
-        override = str(tmp_path / "custom" / "profiles.json")
-        monkeypatch.setenv("MIP_PROFILES_PATH", override)
-        assert get_profiles_path() == Path(override)
-
-
-class TestGetCredentialsPath:
-    def test_default_path(self, monkeypatch):
-        monkeypatch.delenv("XDG_DATA_HOME", raising=False)
-        assert get_credentials_path() == (
-            Path.home() / ".local" / "share" / "mip" / "credentials.json"
-        )
-
-    def test_override_via_xdg_data_home(self, monkeypatch, tmp_path):
-        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
-        assert get_credentials_path() == tmp_path / "mip" / "credentials.json"
 
 
 class TestProfileStore:

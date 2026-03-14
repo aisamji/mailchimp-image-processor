@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from platformdirs import user_config_path, user_data_path
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,16 +21,11 @@ class Profile:
 
 
 def get_profiles_path() -> Path:
-    override = os.environ.get("MIP_PROFILES_PATH")
-    if override:
-        return Path(override)
-    return Path.home() / ".config" / "mip" / "profiles.json"
+    return user_config_path("mip") / "profiles.json"
 
 
 def get_credentials_path() -> Path:
-    xdg_data_home = os.environ.get("XDG_DATA_HOME")
-    base = Path(xdg_data_home) if xdg_data_home else Path.home() / ".local" / "share"
-    return base / "mip" / "credentials.json"
+    return user_data_path("mip") / "credentials.json"
 
 
 class ProfileStore:
