@@ -1,8 +1,10 @@
 from pathlib import Path
 
-from platformdirs import user_config_dir
+from platformdirs import user_config_path, user_data_path
 
-CONFIG_DIR = Path(user_config_dir("mip"))
+APP_NAME = "mip"
+CONFIG_DIR = user_config_path(APP_NAME)
+DATA_DIR = user_data_path(APP_NAME)
 
 
 def get_credentials_path() -> Path:
