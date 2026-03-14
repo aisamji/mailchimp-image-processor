@@ -157,7 +157,7 @@ class TestResolveProfile:
         profile = resolve_profile(self._profiles(), cli_name=None)
         assert profile.name == "default"
 
-    def test_raises_when_no_match(self, monkeypatch):
+    def test_raises_when_profile_not_found(self, monkeypatch):
         monkeypatch.delenv("MIP_PROFILE", raising=False)
         with pytest.raises(ProfileError):
             resolve_profile(
