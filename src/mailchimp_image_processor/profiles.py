@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from platformdirs import user_config_path, user_data_path
+from mailchimp_image_processor.config import CONFIG_DIR, DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +21,11 @@ class Profile:
 
 
 def get_profiles_path() -> Path:
-    return user_config_path("mip") / "profiles.json"
+    return CONFIG_DIR / "profiles.json"
 
 
 def get_credentials_path() -> Path:
-    return user_data_path("mip") / "credentials.json"
+    return DATA_DIR / "credentials.json"
 
 
 class ProfileStore:
