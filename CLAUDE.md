@@ -39,7 +39,7 @@ ruff format                    # Format code
 ruff check --fix               # Lint and auto-fix issues
 ```
 
-Note: `ruff check` and `ruff format` run automatically on commit via pre-commit hooks. `uv sync` runs automatically on pull, merge, or checkout via post-checkout hook.
+**TIP:** While `ruff format` is run automatically as a pre-commit hook, you should run `ruff format` manually before any commit.
 
 ## Architecture
 
@@ -61,12 +61,11 @@ Provider implementations are in `src/mailchimp_image_processor/providers.py`.
 - `pyproject.toml`: Project metadata, dependencies, and tool configuration
 - `.pre-commit-config.yaml`: Git hooks configuration
 
-### Key Dependencies
-- **pillow**: Image processing (PIL)
-- **pyinstaller**: Building standalone binaries
-- **pytest**: Testing framework
+### System Dependencies
 - **uv**: Package and environment management
 - **ruff**: Linting and formatting
+
+**NOTE:** Other python dependencies (such as pytest) will be installed in the virtual environment with `uv`. The full list of python dependencies can be viewed in pyproject.toml.
 
 ## Workflow and CI/CD
 
@@ -81,8 +80,11 @@ This project follows **trunk-based development** with the `main` branch as the d
   - Creates PRs for version bumps
   - Builds binaries with pyinstaller and attaches to GitHub releases
 
-**Important**: All commits to main must be made through PRs and should be squash-merged to maintain clean git history and compatibility with release-please.
+### Commits
 
-## Python Version
+All commits to main must be made through PRs and should be squash-merged to maintain clean git history and compatibility with release-please. All commits and PR titles should conform to [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) style. Breaking changes should be indicated with `!` rather than a `BREAKING CHANGE` footer to comply with release-please requirements in contrast to what conventional commits allows.
 
-This project requires Python 3.13 or higher (see `pyproject.toml` and `.python-version`).
+The commit body should not simply be a reiteration and rephrasing of the description, as defined by conventional commits. The body should go into more depth about what was done as well as why, both sections are optional as well as the entire body itself. Footers for `Refs` and `Co-authored-by` are allowed if needed.
+
+All commits should add one or more tests to validate functionality of added features/fixes. No test is there is no logic or input that needs to be tested. For example, a simple getter does not need to be tested however a function that processes some arguments needs tests even if the function itself does not have any complex logic. All functions and modules should have docstrings. Comments should NOT be used to describe what is happening; they should instead be used to explain the "why?" of a specific coding decision or ... TODOs (e.g. `TODO: Remove this workaround when the underlying library has patched the bug.`). Not ALL decisions need to be explained; many decisions are straight-forward. Examples of things that do need to be explained: taking advantage of a non-obvious feature of the language, going against best practices because of specific project requirements (best practices are determined to be correct for 99% of use-cases but there is always that 1%).
+
