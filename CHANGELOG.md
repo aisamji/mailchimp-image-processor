@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/aisamji/mailchimp-image-processor/compare/v0.3.0...v0.4.0) (2026-03-16)
+
+
+### Features
+
+* **profiles:** add profile scaffolding for multi-account support ([#24](https://github.com/aisamji/mailchimp-image-processor/issues/24)) ([5400fe6](https://github.com/aisamji/mailchimp-image-processor/commit/5400fe6e89c77b89bf33a9f083fe7c163046025c))
+
+
+### Documentation
+
+* add missing docstrings to all modules, classes, and functions ([#27](https://github.com/aisamji/mailchimp-image-processor/issues/27)) ([e084829](https://github.com/aisamji/mailchimp-image-processor/commit/e084829ab16c55f4e04b8104a0821603d7ef5953))
+
 ## [0.3.0](https://github.com/aisamji/mailchimp-image-processor/compare/v0.2.8...v0.3.0) (2026-02-11)
 
 
