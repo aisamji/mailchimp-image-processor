@@ -1,3 +1,5 @@
+"""Image extraction providers for various sources."""
+
 import io
 import os
 import re
@@ -72,12 +74,16 @@ def parse_drive_url(url: str) -> DriveUrlInfo:
 
 
 class ImageProvider(ABC):
+    """Abstract base class for extracting images from various sources."""
+
     @abstractmethod
     def extract(self, source: str) -> list[Image]:
-        pass
+        """Extract images from the given source string."""
 
 
 class FilesystemImageProvider(ImageProvider):
+    """Extracts images from the local filesystem."""
+
     @override
     def extract(self, source: str) -> list[Image]:
         """Read one or more images from the given path.
@@ -95,6 +101,7 @@ class FilesystemImageProvider(ImageProvider):
             raise ValueError("`source` must be the path to a file or directory.")
 
     def _extract_from_dir(self, directory: str) -> list[Image]:
+        """Extract all valid images from a directory, skipping unreadable or non-image files."""
         images: list[Image] = []
         for file in os.listdir(directory):
             try:
@@ -105,10 +112,13 @@ class FilesystemImageProvider(ImageProvider):
         return images
 
     def _extract_from_file(self, file: str) -> Image:
+        """Open and return the image at the given file path."""
         return img.open(file)
 
 
 class GoogleDriveImageProvider(ImageProvider):
+    """Extracts images from Google Drive files, folders, and Google Docs."""
+
     def __init__(self, http=None, discovery_doc=None):
         """Initialize Google Drive provider.
 
