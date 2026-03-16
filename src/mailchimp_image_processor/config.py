@@ -1,3 +1,5 @@
+"""Application configuration constants and path utilities."""
+
 from pathlib import Path
 
 from platformdirs import user_config_path, user_data_path

@@ -1,3 +1,5 @@
+"""Tests for the image provider implementations."""
+
 import io
 import os
 import shutil
@@ -19,6 +21,7 @@ class TestFileSystemProvider:
     def tmp_images_dir(
         self,
     ) -> Generator[str, None, None]:
+        """Create a temporary directory containing sample images and edge-case files."""
         tempdir = tempfile.mkdtemp()
         bad_permissions_file_name = os.path.join(tempdir, "bad_permissions.jpg")
         bad_permissions_dir_name = os.path.join(tempdir, "bad_permissions")
@@ -45,28 +48,33 @@ class TestFileSystemProvider:
     def provider(
         self,
     ) -> FilesystemImageProvider:
+        """Return a FilesystemImageProvider instance."""
         return FilesystemImageProvider()
 
     def test_load_image_from_local_file(
         self, provider: FilesystemImageProvider, tmp_images_dir: str
     ):
+        """Extract returns a single valid image for a JPEG file path."""
         images = provider.extract(os.path.join(tmp_images_dir, "sample.jpg"))
         # Image.verify always returns None but it raises an Exception when it fails.
         assert len(images) == 1 and not images[0].verify()
 
     def test_load_images_from_invalid_source(self, provider: FilesystemImageProvider):
+        """Extract raises FileNotFoundError for a non-existent path."""
         with pytest.raises(FileNotFoundError):
             provider.extract("https://www.google.com")
 
     def test_load_non_image_from_local_file(
         self, provider: FilesystemImageProvider, tmp_images_dir: str
     ):
+        """Extract raises UnidentifiedImageError for a non-image file."""
         with pytest.raises(UnidentifiedImageError):
             provider.extract(os.path.join(tmp_images_dir, "not_an_image.txt"))
 
     def test_load_images_from_local_directory(
         self, provider: FilesystemImageProvider, tmp_images_dir: str
     ):
+        """Extract returns all valid images from a directory, skipping non-images."""
         images = provider.extract(tmp_images_dir)
         # Image.verify always returns None but it raises an Exception when it fails.
         assert len(images) == 2 and not any(map(lambda x: x.verify(), images))
@@ -76,6 +84,7 @@ class TestFileSystemProvider:
         provider: FilesystemImageProvider,
         tmp_images_dir: str,
     ):
+        """Extract raises PermissionError for an unreadable file."""
         with pytest.raises(PermissionError):
             provider.extract(os.path.join(tmp_images_dir, "bad_permissions.jpg"))
 
@@ -84,6 +93,7 @@ class TestFileSystemProvider:
         provider: FilesystemImageProvider,
         tmp_images_dir: str,
     ):
+        """Extract raises PermissionError for an unreadable directory."""
         with pytest.raises(PermissionError):
             provider.extract(os.path.join(tmp_images_dir, "bad_permissions"))
 
